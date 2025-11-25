@@ -18,3 +18,11 @@ def indices_with_neighbor(arr: npt.NDArray, equal: np.generic, neighbor: np.gene
         neighbor_count += mask_b[1+dr : 1+dr+arr.shape[0], 1+dc : 1+dc+arr.shape[1]]
 
     return np.argwhere(mask_a & (neighbor_count > 0))
+
+
+def static_vars(**kwargs):
+    def decorate(func):
+        for k, v in kwargs.items():
+            setattr(func, k, v)
+        return func
+    return decorate

@@ -37,6 +37,13 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
         super().__init__(start_state)
         self._heuristic = heuristic
 
+        if start_state.shape[0] != start_state.shape[1]:
+            raise ValueError("Reversi board must be square.")
+
+    @property
+    def side(self):
+        return self._start_state.shape[0]
+
     def is_terminal(self, state: _state_type) -> bool:
         return not self._can_act(state, TileState.BLACK.value) and not self._can_act(state, TileState.WHITE.value)
 
@@ -96,41 +103,36 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
 
 
 def difference_heuristic(state: _state_type, player: _player_type) -> float:
-    return state.sum() * np.sign(player)
+    return state.sum() * int(player)
 
 
+@helper.static_vars(masks={})
 def side_heuristic(state: _state_type, player: _player_type) -> float:
-    side_positions = []
-    for i in range(state.shape[0]):
-        side_positions.append((i, 0))
-        side_positions.append((i, state.shape[1] - 1))
-    for j in range(1, state.shape[1] - 1):
-        side_positions.append((0, j))
-        side_positions.append((state.shape[0] - 1, j))
-
-    score = 0
-    for r, c in side_positions:
-        if state[r, c] == player:
-            score += 1
-        elif state[r, c] == -player:
-            score -= 1
-    return score
+    side = state.shape[0]
+    if side not in side_heuristic.masks:
+        mask = np.zeros((side, side), dtype=bool)
+        mask[0, :] = True
+        mask[-1, :] = True
+        mask[:, 0] = True
+        mask[:, -1] = True
+        side_heuristic.masks[side] = mask
+    return state[side_heuristic.masks[side]].sum() * int(player)
 
 
 def corner_heuristic(state: _state_type, player: _player_type) -> float:
-    corner_positions = [(0, 0), (0, state.shape[1] - 1), (state.shape[0] - 1, 0), (state.shape[0] - 1, state.shape[1] - 1)]
-    score = 0
-    for r, c in corner_positions:
-        if state[r, c] == player:
-            score += 1
-        elif state[r, c] == -player:
-            score -= 1
-    return score
+    return (state[0, 0] + state[0, -1] + state[-1, 0] + state[-1, -1]) * int(player)
 
+
+@helper.static_vars(max_values={})
 def combined_heuristic(state: _state_type, player: _player_type) -> float:
-    return difference_heuristic(state, player) + \
-           side_heuristic(state, player) * 5 + \
-           corner_heuristic(state, player) * 25
+    side = state.shape[0]
+    if side not in combined_heuristic.max_values:
+        combined_heuristic.max_values[side] = ((side * 9) - 4) * side
+
+    return (difference_heuristic(state, player) +
+            side_heuristic(state, player) * side +
+            corner_heuristic(state, player) * (side ** 2)) / combined_heuristic.max_values[side]
+
 
 def create_start_state(board_size: int = 8) -> _state_type:
     state = np.full((board_size, board_size), TileState.EMPTY.value, dtype=np.int8)
