@@ -1,4 +1,5 @@
 import enum
+import sys
 from typing import Tuple, List, Callable, Union
 
 import numpy as np
@@ -144,8 +145,37 @@ def create_start_state(board_size: int = 8) -> _state_type:
     return state
 
 
+def _display(prev_state: _state_type, state: _state_type, action: _action_type, player: _player_type,
+             state_count: int) -> None:
+    print()
+    print(f"State {state_count - 1}")
+    player_char = 'X' if player == TileState.BLACK.value else 'O'
+    opponent_char = 'O' if player == TileState.BLACK.value else 'X'
+    _display_state(prev_state)
+    print(f"State {state_count}, Player {player_char} moved, Action: {action}")
+    _display_state(state)
+    x_count = np.sum(state == TileState.BLACK.value)
+    o_count = np.sum(state == TileState.WHITE.value)
+    total_count = x_count + o_count
+    print(f"Result - Player X: {x_count} disks, "
+          f"Player {opponent_char}: {o_count} disks, "
+          f"Total: {total_count} disks")
+
+
+@helper.static_vars(char_arrs={})
+def _display_state(state: _state_type) -> None:
+    side = state.shape[0]
+    if side not in _display_state.char_arrs:
+        _display_state.char_arrs[side] = np.zeros((side, side), dtype=np.uint8)
+    chars = _display_state.char_arrs[side]
+    chars[state == TileState.EMPTY.value] = ord('-')
+    chars[state == TileState.BLACK.value] = ord('X')
+    chars[state == TileState.WHITE.value] = ord('O')
+    np.savetxt(sys.stdout, chars, fmt='%c', delimiter='')
+
+
 game = Reversi(create_start_state(), combined_heuristic)
-end = play_full_game(game, TileState.BLACK.value, depth=4)
+end = play_full_game(game, TileState.BLACK.value, depth=4, display=_display)
 
 print("Game over.")
 print(end)
