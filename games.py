@@ -32,5 +32,9 @@ class Game(Generic[TState, TAction, TPlayer], ABC):
         pass
 
     @abstractmethod
-    def act(self, state: TState, action: TAction, player: TPlayer) -> Tuple[TState, TPlayer]:
+    def act(self, state: TState, action: TAction, player: TPlayer) -> TState:
+        pass
+
+    @abstractmethod
+    def next_player(self, state: TState, player: TPlayer) -> TPlayer:
         pass
