@@ -158,7 +158,7 @@ def _display(prev_state: _state_type, state: _state_type, action: _action_type, 
     o_count = np.sum(state == TileState.WHITE.value)
     total_count = x_count + o_count
     print(f"Result - Player X: {x_count} disks, "
-          f"Player {opponent_char}: {o_count} disks, "
+          f"Player O: {o_count} disks, "
           f"Total: {total_count} disks")
 
 
