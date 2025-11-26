@@ -150,7 +150,6 @@ def _display(prev_state: _state_type, state: _state_type, action: _action_type, 
     print()
     print(f"State {state_count - 1}")
     player_char = 'X' if player == TileState.BLACK.value else 'O'
-    opponent_char = 'O' if player == TileState.BLACK.value else 'X'
     _display_state(prev_state)
     print(f"State {state_count}, Player {player_char} moved, Action: {action}")
     _display_state(state)
