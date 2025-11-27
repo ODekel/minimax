@@ -49,10 +49,10 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
         return not self._can_act(state, TileState.BLACK.value) and not self._can_act(state, TileState.WHITE.value)
 
     def evaluate(self, state: _state_type, player: _player_type) -> float:
-        return 0 # self._heuristic(state, player, self)
+        return self._heuristic(state, player, self)
 
     def utility(self, state: _state_type, player: _player_type) -> float:
-        return 0 # state.sum() * int(player)
+        return state.sum() * int(player)
 
     def get_actions(self, state: _state_type, player: _player_type) -> List[_action_type]:
         candidates = helper.indices_with_neighbor(state, TileState.EMPTY.value, -player)
@@ -91,7 +91,8 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
         return False
 
     @staticmethod
-    def _calc_flipped_in_dir(state: _state_type, action: Union[_action_type, npt.NDArray[np.intp]], player: _player_type, direction: npt.NDArray[np.int8]) -> List[Tuple[np.intp, np.intp]]:
+    def _calc_flipped_in_dir(state: _state_type, action: Union[_action_type, npt.NDArray[np.intp]],
+                             player: _player_type, direction: npt.NDArray[np.int8]) -> List[Tuple[np.intp, np.intp]]:
         flipped: List[Tuple[np.intp, np.intp]] = []
         loc = tuple(np.array(action) + direction)
         while 0 <= loc[0] < state.shape[0] and 0 <= loc[1] < state.shape[1]:
@@ -105,9 +106,16 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
         return []
 
 
+@helper.static_vars(sides={})
 def _heuristic(state: _state_type, player: _player_type, game: Reversi) -> float:
+    side = state.shape[0]
+    sides = _heuristic.sides.get(side)
+    if sides is None:
+        sides = np.ones((side, side), dtype=bool)
+        sides[1:-1, 1:-1] = False
+        _heuristic.sides[side] = sides
     corners = np.array(((0, 0), (0, -1), (-1, 0), (-1, -1)))
-    corners_value = state[corners[:,0], corners[:,1]].sum() * (state.shape[0] ** 2)
+    corners_value = state[corners[:, 0], corners[:, 1]].sum() * (side ** 2)
     near_corners = np.array((((0, 1), (1, 0), (1, 1)),
                             ((0, -2), (1, -1), (1, -2)),
                             ((-2, 0), (-1, 1), (-2, 1)),
@@ -115,10 +123,11 @@ def _heuristic(state: _state_type, player: _player_type, game: Reversi) -> float
     near_corners_value = 0
     for row in range(corners.shape[0]):
         if state[tuple(corners[row])] == TileState.EMPTY.value:
-            near_corners_value -= state[near_corners[row][:,0], near_corners[row][:,1]].sum()
-    near_corners_value *= state.shape[0]
+            near_corners_value -= state[near_corners[row][:, 0], near_corners[row][:, 1]].sum()
+    near_corners_value *= side
+    sides_value = state[sides].sum() * (side / 2)
     mobility = len(game.get_actions(state, player)) - len(game.get_actions(state, -player))
-    return (corners_value + near_corners_value + mobility) * int(player) / ((state.shape[0] ** 2) * 5)
+    return (corners_value + near_corners_value + sides_value + mobility) * int(player) / ((side ** 2) * 9)
 
 
 def create_start_state(board_size: int = 8) -> _state_type:
@@ -164,4 +173,4 @@ end = play_full_game(reversi, TileState.BLACK.value, depth=3, display=_display)
 
 print("Game over.")
 print(end)
-print("Sum:" , end.sum())
+print("Sum:", end.sum())

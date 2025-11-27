@@ -1,22 +1,22 @@
 import math
-from typing import TypeVar, Callable, Optional
+from typing import TypeVar, Callable, Optional, Tuple
 
 import numpy as np
 
 from games import Game
 
+RANDOMIZE_ON_EQUAL_EVAL = True
 
 TState = TypeVar("TState")
 TAction = TypeVar("TAction")
 TPlayer = TypeVar("TPlayer")
 _display_type = Callable[[TState, TState, TAction, TPlayer, int], None]
 
-
 _rng = np.random.default_rng()
 
 
 def play_full_game(game: Game[TState, TAction, TPlayer], first_player: TPlayer, depth: int,
-                   display: _display_type=None) -> TState:
+                   display: _display_type = None) -> TState:
     next_player = first_player
     next_state = game.start_state
     state_count = 0
@@ -37,7 +37,8 @@ def minimax(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer
     return _find_max(game, state, player, player, depth)[-1]
 
 
-def _find_max(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, original_player: TPlayer, depth: int):
+def _find(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, original_player: TPlayer, depth: int,
+          cmp: Callable[[float, float], bool], initial_value: float) -> Tuple[float, TAction]:
     if game.is_terminal(state):
         return game.utility(state, original_player), None
     if depth == 0:
@@ -47,46 +48,28 @@ def _find_max(game: Game[TState, TAction, TPlayer], state: TState, player: TPlay
     if len(actions) == 0:
         return _find_next_depth(game, state, player, original_player, depth)[0], None
 
-    max_eval = -math.inf
-    max_action = None
+    chosen_eval = initial_value
+    chosen_action = None
     for action in actions:
         result = game.act(state, action, player)
         next_eval, _ = _find_next_depth(game, result, player, original_player, depth)
 
-        if next_eval > max_eval:
-            max_eval = next_eval
-            max_action = action
-        elif next_eval == max_eval:
+        if cmp(next_eval, chosen_eval):
+            chosen_eval = next_eval
+            chosen_action = action
+        elif next_eval == chosen_eval and RANDOMIZE_ON_EQUAL_EVAL:
             if _rng.random() < 0.5:
-                max_action = action
+                chosen_action = action
 
-    return max_eval, max_action
+    return chosen_eval, chosen_action
 
 
-def _find_min(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, original_player: TPlayer, depth: int):
-    if game.is_terminal(state):
-        return game.utility(state, original_player), None
-    if depth == 0:
-        return game.evaluate(state, original_player), None
+def _find_max(game, state, player, original_player, depth):
+    return _find(game, state, player, original_player, depth, lambda new, prev: new > prev, -math.inf)
 
-    actions = game.get_actions(state, player)
-    if len(actions) == 0:
-        return _find_next_depth(game, state, player, original_player, depth)[0], None
 
-    min_eval = math.inf
-    min_action = None
-    for action in actions:
-        result = game.act(state, action, player)
-        next_eval, _ = _find_next_depth(game, result, player, original_player, depth)
-
-        if next_eval < min_eval:
-            min_eval = next_eval
-            min_action = action
-        elif next_eval == min_eval:
-            if _rng.random() < 0.5:
-                min_action = action
-
-    return min_eval, min_action
+def _find_min(game, state, player, original_player, depth):
+    return _find(game, state, player, original_player, depth, lambda new, prev: new < prev, math.inf)
 
 
 def _find_next_depth(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, original_player: TPlayer,
