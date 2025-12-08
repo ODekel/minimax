@@ -113,8 +113,8 @@ def _display_all_actions(game: Reversi, first_player: _player_type, disk_count: 
 
 def _display_methodical(game: Reversi, first_player: _player_type, actions_to_display: int) -> None:
     state, player = play_methodical(game, first_player, display=_display, max_turns=actions_to_display)
-    print()
     end_state = play_methodical(Reversi(state, _heuristic), player)[0]
+    print()
     _display_game_over(end_state)
 
 
@@ -138,7 +138,7 @@ def _heuristic(state: _state_type, player: _player_type, game: Reversi) -> float
             near_corners_value -= state[near_corners[row][:, 0], near_corners[row][:, 1]].sum()
     near_corners_value *= side
     sides_value = state[sides].sum() * (side / 2)
-    mobility = len(game.get_actions(state, player)) - len(game.get_actions(state, -player))
+    mobility = len(game.get_actions(state, TileState.BLACK.value)) - len(game.get_actions(state, TileState.WHITE.value))
     return (corners_value + near_corners_value + sides_value + mobility) * int(player) / ((side ** 2) * 9)
 
 
