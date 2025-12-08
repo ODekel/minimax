@@ -15,12 +15,29 @@ _rng = np.random.default_rng()
 
 
 def play_full_game(game: Game[TState, TAction, TPlayer], first_player: TPlayer, depth: int,
-                   display: _display_type = None, randomize_on_equal: bool = True) -> TState:
+                   display: _display_type = None, randomize_on_equal: bool = True, max_turns: int = math.inf
+                   ) -> Tuple[TState, TPlayer]:
+    return _play(game, first_player, lambda g, s, p: minimax(g, s, p, depth, randomize_on_equal), display, max_turns)
+
+
+def minimax(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, depth: int,
+            randomize_on_equal: bool = True) -> Optional[TAction]:
+    return _find_max(game, state, player, player, depth, randomize_on_equal)[-1]
+
+
+def play_methodical(game: Game[TState, TAction, TPlayer], first_player: TPlayer, display: _display_type = None,
+                    max_turns: int = math.inf) -> Tuple[TState, TPlayer]:
+    return _play(game, first_player, _methodical_next_action, display, max_turns)
+
+
+def _play(game: Game[TState, TAction, TPlayer], first_player: TPlayer,
+          action_selector: Callable[[Game[TState, TAction, TPlayer], TState, TPlayer], Optional[TAction]],
+          display: _display_type, max_turns: int) -> Tuple[TState, TPlayer]:
     next_player = first_player
     next_state = game.start_state
     state_count = 0
-    next_action = minimax(game, next_state, next_player, depth, randomize_on_equal)
-    while next_action is not None or not game.is_terminal(next_state):
+    next_action = action_selector(game, next_state, first_player)
+    while (next_action is not None or not game.is_terminal(next_state)) and state_count < max_turns:
         prev_state, prev_player = next_state, next_player
         if next_action is not None:
             next_state = game.act(next_state, next_action, next_player)
@@ -28,13 +45,15 @@ def play_full_game(game: Game[TState, TAction, TPlayer], first_player: TPlayer, 
         state_count += 1
         if display is not None:
             display(prev_state, next_state, next_action, prev_player, state_count)
-        next_action = minimax(game, next_state, next_player, depth, randomize_on_equal)
-    return next_state
+        next_action = action_selector(game, next_state, next_player)
+    return next_state, next_player
 
 
-def minimax(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, depth: int,
-            randomize_on_equal: bool = True) -> Optional[TAction]:
-    return _find_max(game, state, player, player, depth, randomize_on_equal)[-1]
+def _methodical_next_action(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer) -> Optional[TAction]:
+    actions = game.get_actions(state, player)
+    if not actions:
+        return None
+    return actions[0]
 
 
 def _find(game: Game[TState, TAction, TPlayer], state: TState, player: TPlayer, original_player: TPlayer, depth: int,

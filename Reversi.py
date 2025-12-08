@@ -7,8 +7,7 @@ import numpy.typing as npt
 
 import helper
 from games import Game, TState, TPlayer
-from minimax import play_full_game
-
+from minimax import play_full_game, play_methodical
 
 _state_type = npt.NDArray[np.int8]
 _action_type = Tuple[np.int8, np.int8]
@@ -106,6 +105,19 @@ class Reversi(Game[_state_type, _action_type, _player_type]):
         return []
 
 
+def _display_all_actions(game: Reversi, first_player: _player_type, disk_count: int) -> None:
+    state, player = play_methodical(game, first_player, max_turns=disk_count - 4)
+    for action in game.get_actions(state, player):
+        _display(state, game.act(state, action, player), action, player, disk_count + 1)
+
+
+def _display_methodical(game: Reversi, first_player: _player_type, actions_to_display: int) -> None:
+    state, player = play_methodical(game, first_player, display=_display, max_turns=actions_to_display)
+    print()
+    end_state = play_methodical(Reversi(state, _heuristic), player)[0]
+    _display_game_over(end_state)
+
+
 @helper.static_vars(sides={})
 def _heuristic(state: _state_type, player: _player_type, game: Reversi) -> float:
     side = state.shape[0]
@@ -130,7 +142,7 @@ def _heuristic(state: _state_type, player: _player_type, game: Reversi) -> float
     return (corners_value + near_corners_value + sides_value + mobility) * int(player) / ((side ** 2) * 9)
 
 
-def create_start_state(board_size: int = 8) -> _state_type:
+def _create_start_state(board_size: int = 8) -> _state_type:
     state = np.full((board_size, board_size), TileState.EMPTY.value, dtype=np.int8)
     mid = board_size // 2
     state[mid - 1, mid - 1] = TileState.WHITE.value
@@ -148,12 +160,26 @@ def _display(prev_state: _state_type, state: _state_type, action: _action_type, 
     _display_state(prev_state)
     print(f"State {state_count}, Player {player_char} moved, Action: {action}")
     _display_state(state)
+    _display_state_result(state)
+
+
+def _display_state_result(state: _state_type) -> None:
     x_count = np.sum(state == TileState.BLACK.value)
     o_count = np.sum(state == TileState.WHITE.value)
     total_count = x_count + o_count
     print(f"Result - Player X: {x_count} disks, "
           f"Player O: {o_count} disks, "
           f"Total: {total_count} disks")
+
+
+def _display_game_over(state: _state_type) -> None:
+    print()
+    print("GAME OVER")
+    _display_state(state)
+    _display_state_result(state)
+    score = np.sum(state == TileState.BLACK.value) - np.sum(state == TileState.WHITE.value)
+    winner = 'BLACK' if score > 0 else 'WHITE' if score < 0 else 'DRAW'
+    print(f"WINNER: {winner}")
 
 
 @helper.static_vars(char_arrs={})
@@ -168,9 +194,29 @@ def _display_state(state: _state_type) -> None:
     np.savetxt(sys.stdout, chars, fmt='%c', delimiter='')
 
 
-reversi = Reversi(create_start_state(), _heuristic)
-end = play_full_game(reversi, TileState.BLACK.value, depth=3, display=_display)
+args = sys.argv[1:]
+if not args:
+    print('Please provider options')
+    exit(0)
 
-print("Game over.")
-print(end)
-print("Sum:", end.sum())
+reversi = Reversi(_create_start_state(), _heuristic)
+if args[0] == '--displayAllActions':
+    if len(args) == 1:
+        print('Please provider actions num')
+        exit(0)
+    _display_all_actions(reversi, TileState.BLACK.value, int(args[1]))
+elif args[0] == '--methodical':
+    if len(args) == 1:
+        print('Please provider actions num')
+        exit(0)
+    _display_methodical(reversi, TileState.BLACK.value, int(args[1]))
+elif args[0] == 'H':
+    if len(args) == 1:
+        depth = 1
+    elif len(args) == 2:
+        print('Please provide depth')
+        exit(0)
+    else:
+        depth = int(args[2])
+    end = play_full_game(reversi, TileState.BLACK.value, depth=depth)[0]
+    _display_game_over(end)
